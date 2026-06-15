@@ -34,12 +34,12 @@ class ClientaUpdate(BaseModel):
 # 3. Esquema de ENTRADA (Lo que manda el celular al agendar un turno)
 class SesionCreate(BaseModel):
     id_clienta: int
-    fecha_hora: int           # Usamos int porque en Java son milisegundos (long)
+    fecha_hora: int           
     duracion_minutos: int
     tipo_servicio: str
     monto_cobrado: float
-    material_remocion: bool
-    notas: Optional[str] = None
+    material_para_remocion: bool 
+    notas_sesion: Optional[str] = None 
     estado: str
 
 # 4. Esquema de SALIDA (Lo que el servidor le responde al celular)
@@ -50,8 +50,8 @@ class SesionResponse(BaseModel):
     duracion_minutos: int
     tipo_servicio: str
     monto_cobrado: float
-    material_remocion: bool
-    notas: Optional[str] = None
+    material_para_remocion: bool
+    notas_sesion: Optional[str] = None
     estado: str
 
     class Config:
@@ -62,8 +62,8 @@ class SesionUpdate(BaseModel):
     duracion_minutos: Optional[int] = None
     tipo_servicio: Optional[str] = None
     monto_cobrado: Optional[float] = None
-    material_remocion: Optional[bool] = None
-    notas: Optional[str] = None
+    material_para_remocion: Optional[bool] = None
+    notas_sesion: Optional[str] = None
     estado: Optional[str] = None
 
 # 5. Esquema de ENTRADA (Lo que manda la app para guardar medidas)
