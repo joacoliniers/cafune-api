@@ -106,7 +106,6 @@ def borrar_clienta(id_clienta: int, db: Session = Depends(get_db)):
 # POST: Agendar un nuevo turno
 @app.post("/sesiones/", response_model=schemas.SesionResponse)
 def crear_sesion(sesion: schemas.SesionCreate, db: Session = Depends(get_db)):
-    # Validamos que la clienta exista antes de asignarle un turno
     clienta = db.query(models.Clienta).filter(models.Clienta.id_clienta == sesion.id_clienta).first()
     if not clienta:
         raise HTTPException(status_code=404, detail="No se puede agendar: La clienta no existe")
@@ -117,17 +116,33 @@ def crear_sesion(sesion: schemas.SesionCreate, db: Session = Depends(get_db)):
     db.refresh(nueva_sesion)
     return nueva_sesion
 
-# GET: Obtener turnos (Con filtro opcional de fechas en milisegundos)
-@app.get("/sesiones/", response_model=list[schemas.SesionResponse])
-def obtener_sesiones(inicio: int = None, fin: int = None, db: Session = Depends(get_db)):
+# GET: Obtener turnos por rango (¡Ruta específica para Android!)
+@app.get("/sesiones/rango", response_model=list[schemas.SesionResponse])
+def obtener_sesiones_por_rango(inicio: int = None, fin: int = None, db: Session = Depends(get_db)):
     consulta = db.query(models.Sesion)
-    
-    # Si Android manda el inicioDelDia y finDelDia, filtramos la base de datos
     if inicio is not None and fin is not None:
         consulta = consulta.filter(models.Sesion.fecha_hora >= inicio, models.Sesion.fecha_hora <= fin)
-    
-    # Ordenamos por hora para que el calendario los muestre prolijos
     return consulta.order_by(models.Sesion.fecha_hora.asc()).all()
+
+# GET: Obtener el historial de una clienta específica (¡Ruta nueva para el Perfil!)
+@app.get("/sesiones/clienta/{id_clienta}", response_model=list[schemas.SesionResponse])
+def obtener_sesiones_por_clienta(id_clienta: int, db: Session = Depends(get_db)):
+    return db.query(models.Sesion).filter(models.Sesion.id_clienta == id_clienta).order_by(models.Sesion.fecha_hora.desc()).all()
+
+# PUT: Actualizar datos de un turno (Horario, Servicio, Finalización)
+@app.put("/sesiones/{id_sesion}", response_model=schemas.SesionResponse)
+def actualizar_sesion(id_sesion: int, sesion_actualizada: schemas.SesionUpdate, db: Session = Depends(get_db)):
+    sesion_db = db.query(models.Sesion).filter(models.Sesion.id_sesion == id_sesion).first()
+    if not sesion_db:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    
+    datos_nuevos = sesion_actualizada.model_dump(exclude_unset=True)
+    for clave, valor in datos_nuevos.items():
+        setattr(sesion_db, clave, valor)
+        
+    db.commit()
+    db.refresh(sesion_db)
+    return sesion_db
 
 # DELETE: Cancelar/Borrar un turno
 @app.delete("/sesiones/{id_sesion}")
@@ -140,29 +155,43 @@ def borrar_sesion(id_sesion: int, db: Session = Depends(get_db)):
     db.commit()
     return {"mensaje": "Turno eliminado con éxito"}
 
-@app.put("/sesiones/{id_sesion}", response_model=schemas.SesionResponse)
-def actualizar_sesion(id_sesion: int, sesion_actualizada: schemas.SesionUpdate, db: Session = Depends(get_db)):
+
+# ==========================================
+# ENDPOINTS: MEDIDAS SOFT GEL
+# ==========================================
+
+# GET: Obtener la ficha técnica de los dedos de una clienta
+@app.get("/medidas/clienta/{id_clienta}", response_model=schemas.MedidaSoftGelResponse)
+def obtener_medidas_por_clienta(id_clienta: int, db: Session = Depends(get_db)):
+    medidas_db = db.query(models.MedidaSoftGel).filter(models.MedidaSoftGel.id_clienta == id_clienta).first()
+    if not medidas_db:
+        raise HTTPException(status_code=404, detail="Medidas no encontradas")
+    return medidas_db
+
+# POST (UPSERT): Guardar o Reemplazar medidas.
+# Como en Android vamos tocando dedo por dedo, es mejor un solo endpoint que se encargue
+# de crear la fila si es el primer dedo, o actualizarla si ya existía.
+@app.post("/medidas/", response_model=schemas.MedidaSoftGelResponse)
+def guardar_o_reemplazar_medidas(medida: schemas.MedidaSoftGelCreate, db: Session = Depends(get_db)):
+    # 1. Buscamos si la clienta ya tiene una fila de medidas
+    medida_db = db.query(models.MedidaSoftGel).filter(models.MedidaSoftGel.id_clienta == medida.id_clienta).first()
     
-    # 1. Buscamos el turno viejo en la base de datos
-    sesion_db = db.query(models.Sesion).filter(models.Sesion.id_sesion == id_sesion).first()
-    
-    # 2. Control de errores: Si mandan un ID que no existe, cortamos todo y devolvemos 404
-    if not sesion_db:
-        raise HTTPException(status_code=404, detail="Turno no encontrado")
-    
-    # 3. Extraemos SOLO los datos que el celular efectivamente mandó
-    # El 'exclude_unset=True' es mágico: ignora todo lo que sea nulo en el esquema
-    datos_nuevos = sesion_actualizada.model_dump(exclude_unset=True)
-    
-    # 4. Actualizamos el objeto de la base de datos campo por campo
-    for clave, valor in datos_nuevos.items():
-        setattr(sesion_db, clave, valor)
+    # 2. Si no existe, la creamos (INSERT)
+    if not medida_db:
+        nueva_medida = models.MedidaSoftGel(**medida.model_dump())
+        db.add(nueva_medida)
+        db.commit()
+        db.refresh(nueva_medida)
+        return nueva_medida
         
-    # 5. Confirmamos el guardado
+    # 3. Si ya existía, pisamos los datos viejos con los nuevos (UPDATE)
+    datos_nuevos = medida.model_dump(exclude_unset=True)
+    for clave, valor in datos_nuevos.items():
+        setattr(medida_db, clave, valor)
+        
     db.commit()
-    db.refresh(sesion_db)
-    
-    return sesion_db
+    db.refresh(medida_db)
+    return medida_db
 # ==========================================
 # ENDPOINTS: MEDIDAS SOFT GEL
 # ==========================================
