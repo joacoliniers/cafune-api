@@ -69,33 +69,36 @@ class SesionUpdate(BaseModel):
 # 5. Esquema de ENTRADA (Lo que manda la app para guardar medidas)
 class MedidaSoftGelCreate(BaseModel):
     id_clienta: int
-    izq_pulgar: int
-    izq_indice: int
-    izq_medio: int
-    izq_anular: int
-    izq_menique: int
-    der_pulgar: int
-    der_indice: int
-    der_medio: int
-    der_anular: int
-    der_menique: int
+    izq_pulgar: Optional[int] = None
+    izq_indice: Optional[int] = None
+    izq_medio: Optional[int] = None
+    izq_anular: Optional[int] = None
+    izq_menique: Optional[int] = None
+    
+    der_pulgar: Optional[int] = None
+    der_indice: Optional[int] = None
+    der_medio: Optional[int] = None
+    der_anular: Optional[int] = None
+    der_menique: Optional[int] = None
 
 # 6. Esquema de SALIDA (Lo que el servidor devuelve)
 class MedidaSoftGelResponse(BaseModel):
     id_clienta: int
-    izq_pulgar: int
-    izq_indice: int
-    izq_medio: int
-    izq_anular: int
-    izq_menique: int
-    der_pulgar: int
-    der_indice: int
-    der_medio: int
-    der_anular: int
-    der_menique: int
+    
+    izq_pulgar: Optional[int] = None
+    izq_indice: Optional[int] = None
+    izq_medio: Optional[int] = None
+    izq_anular: Optional[int] = None
+    izq_menique: Optional[int] = None
+    
+    der_pulgar: Optional[int] = None
+    der_indice: Optional[int] = None
+    der_medio: Optional[int] = None
+    der_anular: Optional[int] = None
+    der_menique: Optional[int] = None
 
     class Config:
-        from_attributes = True
+        from_attributes = True 
 
 class MedidaSoftGelUpdate(BaseModel):  
     izq_pulgar: Optional[int] = None
