@@ -1,16 +1,16 @@
 from pydantic import BaseModel
 from typing import Optional
 
-# 1. Esquema de ENTRADA (Lo que manda el celular al crear)
+# 1. Esquema de ENTRADA
 class ClientaCreate(BaseModel):
     nombre: str
     tipo_unia: str
     es_grasosa: bool
-    notas: Optional[str] = None  # Si no manda nada, por defecto es None (nulo)
+    notas: Optional[str] = None 
 
-# 2. Esquema de SALIDA (Lo que el servidor le responde al celular)
+# 2. Esquema de SALIDA
 class ClientaResponse(BaseModel):
-    id_clienta: int              # Acá SÍ incluimos el ID porque ya existe en la base
+    id_clienta: int             
     nombre: str
     tipo_unia: str
     es_grasosa: bool
@@ -18,8 +18,6 @@ class ClientaResponse(BaseModel):
 
     medidas: Optional[MedidaSoftGelResponse] = None
 
-    # Configuración mágica para que Pydantic pueda leer directamente 
-    # los objetos que le devuelve SQLAlchemy
     class Config:
         from_attributes = True
 
@@ -31,10 +29,10 @@ class ClientaUpdate(BaseModel):
 
 
 
-# 3. Esquema de ENTRADA (Lo que manda el celular al agendar un turno)
+# 3. Esquema de ENTRADA
 class SesionCreate(BaseModel):
     id_clienta: int
-    fecha_hora: int           # Usamos int porque en Java son milisegundos (long)
+    fecha_hora: int           
     duracion_minutos: int
     tipo_servicio: str
     monto_cobrado: float
@@ -42,9 +40,9 @@ class SesionCreate(BaseModel):
     notas: Optional[str] = None
     estado: str
 
-# 4. Esquema de SALIDA (Lo que el servidor le responde al celular)
+# 4. Esquema de SALIDA
 class SesionResponse(BaseModel):
-    id_sesion: int            # El ID único del turno generado por la BD
+    id_sesion: int           
     id_clienta: int
     fecha_hora: int
     duracion_minutos: int
@@ -66,7 +64,7 @@ class SesionUpdate(BaseModel):
     notas: Optional[str] = None
     estado: Optional[str] = None
 
-# 5. Esquema de ENTRADA (Lo que manda la app para guardar medidas)
+# 5. Esquema de ENTRADA
 class MedidaSoftGelCreate(BaseModel):
     id_clienta: int
     izq_pulgar: Optional[int] = None
@@ -81,7 +79,7 @@ class MedidaSoftGelCreate(BaseModel):
     der_anular: Optional[int] = None
     der_menique: Optional[int] = None
 
-# 6. Esquema de SALIDA (Lo que el servidor devuelve)
+# 6. Esquema de SALIDA
 class MedidaSoftGelResponse(BaseModel):
     id_clienta: int
     

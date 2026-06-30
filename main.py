@@ -6,10 +6,9 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal
 import models, schemas
 
-# Cargamos las variables
+
 load_dotenv()
 
-# Leemos la llave desde el archivo .env
 API_KEY = os.getenv("API_KEY") 
 API_KEY_NAME = "X-API-Key"
 
@@ -23,10 +22,9 @@ def validar_api_key(api_key: str = Security(api_key_header)):
         )
     return api_key
 
-# Crea las tablas si no existen
+
 Base.metadata.create_all(bind=engine)
 
-# Al agregar 'dependencies', TODAS las rutas quedan bloqueadas automáticamente
 app = FastAPI(
     title="API de Cafuné", 
     dependencies=[Depends(validar_api_key)]
@@ -38,9 +36,9 @@ app = FastAPI(
 def get_db():
     db = SessionLocal()
     try:
-        yield db # Entrega la conexión temporal
+        yield db 
     finally:
-        db.close() # La cierra automáticamente al terminar
+        db.close() 
 
 # ==========================================
 # ENDPOINTS: CLIENTAS
@@ -48,16 +46,13 @@ def get_db():
 
 @app.post("/clientas/", response_model=schemas.ClientaResponse)
 def crear_clienta(clienta: schemas.ClientaCreate, db: Session = Depends(get_db)):
-    # 1. Transformamos el JSON de Pydantic a un objeto de SQLAlchemy
-    # El **clienta.model_dump() es un atajo para no escribir nombre=clienta.nombre, etc.
+
     nueva_clienta = models.Clienta(**clienta.model_dump())
     
-    # 2. Lo agregamos a la base de datos
     db.add(nueva_clienta)
-    db.commit() # Confirmamos el guardado
-    db.refresh(nueva_clienta) # Recargamos para obtener el ID autogenerado
+    db.commit()
+    db.refresh(nueva_clienta)
     
-    # 3. Devolvemos la clienta creada
     return nueva_clienta
 
 # GET: Obtener todas las clientas (Para llenar el Autocomplete)
@@ -116,7 +111,7 @@ def crear_sesion(sesion: schemas.SesionCreate, db: Session = Depends(get_db)):
     db.refresh(nueva_sesion)
     return nueva_sesion
 
-# GET: Obtener turnos por rango (¡Ruta específica para Android!)
+# GET: Obtener turnos por rango
 @app.get("/sesiones/rango", response_model=list[schemas.SesionResponse])
 def obtener_sesiones_por_rango(inicio: int = None, fin: int = None, db: Session = Depends(get_db)):
     consulta = db.query(models.Sesion)
@@ -124,7 +119,7 @@ def obtener_sesiones_por_rango(inicio: int = None, fin: int = None, db: Session 
         consulta = consulta.filter(models.Sesion.fecha_hora >= inicio, models.Sesion.fecha_hora <= fin)
     return consulta.order_by(models.Sesion.fecha_hora.asc()).all()
 
-# GET: Obtener el historial de una clienta específica (¡Ruta nueva para el Perfil!)
+# GET: Obtener el historial de una clienta específica
 @app.get("/sesiones/clienta/{id_clienta}", response_model=list[schemas.SesionResponse])
 def obtener_sesiones_por_clienta(id_clienta: int, db: Session = Depends(get_db)):
     return db.query(models.Sesion).filter(models.Sesion.id_clienta == id_clienta).order_by(models.Sesion.fecha_hora.desc()).all()
@@ -169,14 +164,11 @@ def obtener_medidas_por_clienta(id_clienta: int, db: Session = Depends(get_db)):
     return medidas_db
 
 # POST (UPSERT): Guardar o Reemplazar medidas.
-# Como en Android vamos tocando dedo por dedo, es mejor un solo endpoint que se encargue
-# de crear la fila si es el primer dedo, o actualizarla si ya existía.
 @app.post("/medidas/", response_model=schemas.MedidaSoftGelResponse)
 def guardar_o_reemplazar_medidas(medida: schemas.MedidaSoftGelCreate, db: Session = Depends(get_db)):
-    # 1. Buscamos si la clienta ya tiene una fila de medidas
+    
     medida_db = db.query(models.MedidaSoftGel).filter(models.MedidaSoftGel.id_clienta == medida.id_clienta).first()
     
-    # 2. Si no existe, la creamos (INSERT)
     if not medida_db:
         nueva_medida = models.MedidaSoftGel(**medida.model_dump())
         db.add(nueva_medida)
@@ -184,7 +176,6 @@ def guardar_o_reemplazar_medidas(medida: schemas.MedidaSoftGelCreate, db: Sessio
         db.refresh(nueva_medida)
         return nueva_medida
         
-    # 3. Si ya existía, pisamos los datos viejos con los nuevos (UPDATE)
     datos_nuevos = medida.model_dump(exclude_unset=True)
     for clave, valor in datos_nuevos.items():
         setattr(medida_db, clave, valor)
@@ -199,7 +190,6 @@ def guardar_o_reemplazar_medidas(medida: schemas.MedidaSoftGelCreate, db: Sessio
 # POST: Cargar las medidas por primera vez
 @app.post("/medidas/", response_model=schemas.MedidaSoftGelResponse)
 def crear_medidas(medida: schemas.MedidaSoftGelCreate, db: Session = Depends(get_db)):
-    # Verificamos si ya tiene medidas cargadas para no duplicar (Relación 1 a 1)
     medida_existente = db.query(models.MedidaSoftGel).filter(models.MedidaSoftGel.id_clienta == medida.id_clienta).first()
     if medida_existente:
         raise HTTPException(status_code=400, detail="Esta clienta ya tiene medidas. Usá PUT para actualizarlas.")
